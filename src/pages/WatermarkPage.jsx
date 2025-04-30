@@ -21,7 +21,7 @@ export default function WatermarkPage() {
       {}
       <section id="top" className="bg-white py-20 px-6">
         <div className="container mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <div>
+        <div className="text-center md:text-left">
             <h1 className="text-5xl font-bold text-gray-900 mb-6">Remove Watermarks Easy</h1>
             <p className="text-lg text-gray-700 mb-8">
               Use AI to clean up your images — fast, easy, and for free. No sign-up needed.

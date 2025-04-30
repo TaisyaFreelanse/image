@@ -44,7 +44,6 @@ export default function TestimonialsCarousel() {
           Real feedback from people who tried our AI tools
         </p>
 
-        {}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {[0, 1, 2].map((offset) => {
             const i = (index + offset) % testimonials.length;
@@ -52,7 +51,7 @@ export default function TestimonialsCarousel() {
             return (
               <div
                 key={i}
-                className="flex flex-col justify-between h-full bg-white p-6 rounded-2xl shadow-md text-left transition-transform duration-300 hover:scale-105"
+                className="flex flex-col bg-white p-6 rounded-2xl shadow-md text-left transition-transform duration-300 hover:scale-105 h-full"
               >
                 <div className="flex items-center mb-4">
                   <img
@@ -71,7 +70,6 @@ export default function TestimonialsCarousel() {
           })}
         </div>
 
-        {}
         <div className="flex justify-center gap-4 mt-8">
           <button
             onClick={prev}
@@ -90,6 +88,7 @@ export default function TestimonialsCarousel() {
     </section>
   );
 }
+
 
 
 

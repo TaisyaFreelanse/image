@@ -15,7 +15,7 @@ export default function BackgroundPage() {
       {}
       <div className="container mx-auto grid md:grid-cols-2 gap-16 items-center">
         {}
-        <div className="flex flex-col items-start md:items-start text-left max-w-xl">
+        <div className="flex flex-col items-center md:items-start text-center md:text-left max-w-xl mx-auto">
           <div className="flex items-center mb-4">
             <h1 className="text-4xl font-bold text-gray-900 font-sans">
               Remove Background from Any
