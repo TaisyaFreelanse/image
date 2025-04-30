@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "chmod +x node_modules/.bin/vite || echo 'Skipping chmod on Windows'"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.5",
@@ -29,3 +30,4 @@
     "vite": "^5.0.0"
   }
 }
+
