@@ -46,7 +46,7 @@ export default function SectionCompare() {
           
           {}
           <div className="flex-1 flex justify-center order-2 md:order-1">
-          <div className="w-[400px] h-[400px] md:w-[600px] md:h-[650px] rounded-[30px] overflow-hidden border border-gray-300 mx-auto">
+          <div className="w-[400px] h-[410px] md:w-[600px] md:h-[650px] rounded-[30px] overflow-hidden border border-gray-300 mx-auto">
               <CompareSlider
                 beforeImage={personBefore}
                 afterImage={personAfter}
