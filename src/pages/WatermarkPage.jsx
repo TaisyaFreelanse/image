@@ -17,6 +17,7 @@ import After3 from "../assets/mili.png";
 
 export default function WatermarkPage() {
   return (
+    
     <>
       {}
       <section id="top" className="bg-white py-20 px-6">
@@ -147,10 +148,14 @@ export default function WatermarkPage() {
       </section>
 
       {}
-      <TestimonialsCarousel />
+      <section id="reviews">
+  <TestimonialsCarousel />
+</section>
 
       {}
-      <FAQ />
+      <section id="faq">
+  <FAQ />
+</section>
 
       {}
       <section className="bg-white py-20 px-6 text-center">
