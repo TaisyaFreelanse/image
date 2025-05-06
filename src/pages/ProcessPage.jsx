@@ -62,6 +62,41 @@ export default function ProcessPage() {
       reader.readAsDataURL(file);
     }
   };
+  const createMaskFromBrushPaths = () => {
+  const canvas = document.createElement("canvas");
+  canvas.width = containerRef.current.offsetWidth;
+  canvas.height = containerRef.current.offsetHeight;
+  const ctx = canvas.getContext("2d");
+
+  // Черный фон
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Белая кисть
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = brushSize;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  for (const path of brushPaths) {
+    ctx.beginPath();
+    path.forEach((point, i) => {
+      if (i === 0) {
+        ctx.moveTo(point.x, point.y);
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    });
+    ctx.stroke();
+  }
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve(blob);
+    }, "image/png");
+  });
+};
+
 
   const startDraw = (e) => {
     if (mode !== "manual") return;
@@ -107,17 +142,32 @@ export default function ProcessPage() {
     setIsProcessing(true);
   
     try {
-      
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const file = await fetch(images[activeIndex]).then(res => res.blob());
+      const formData = new FormData();
+      formData.append("image", file);
   
-      setIsProcessed(true);           
-      setShowErrorModal(false);       
+      const response = await fetch("/remove-watermark", {
+        method: "POST",
+        body: formData,
+      });
+  
+      if (!response.ok) throw new Error("Server error");
+  
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+  
+      setImages([url]);
+      setActiveIndex(0);
+      setIsProcessed(true);
+      setShowErrorModal(false);
     } catch (error) {
-      setShowErrorModal(true);        
+      console.error(error);
+      setShowErrorModal(true);
     } finally {
-      setIsProcessing(false);         
+      setIsProcessing(false);
     }
   };
+  
   const handleDownload = () => {
     setShowDownloadModal(true);
     setDownloadProgress(0);

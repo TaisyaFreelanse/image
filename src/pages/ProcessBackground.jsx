@@ -23,6 +23,9 @@ export default function ProcessPage() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const containerRef = useRef();
+  const [selectedBg, setSelectedBg] = useState({ type: null, value: null });
+
+
 
   const increaseZoom = () => updateZoom(Math.min(zoom + 5, 200));
   const decreaseZoom = () => updateZoom(Math.max(zoom - 5, 10));
@@ -103,39 +106,99 @@ export default function ProcessPage() {
       setBrushPaths((prev) => prev.slice(0, -1));
     }
   };
+  const mergeImageWithBackground = async () => {
+    return new Promise((resolve) => {
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.src = images[activeIndex];
+  
+      image.onload = () => {
+        const width = image.width;
+        const height = image.height;
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+  
+        // draw background
+        if (selectedBg?.type === "color") {
+          ctx.fillStyle = selectedBg.value;
+          ctx.fillRect(0, 0, width, height);
+        } else if (selectedBg?.type === "image") {
+          const bg = new Image();
+          bg.crossOrigin = "anonymous";
+          bg.src = selectedBg.value;
+          bg.onload = () => {
+            ctx.drawImage(bg, 0, 0, width, height);
+            ctx.drawImage(image, 0, 0, width, height);
+            canvas.toBlob(resolve, "image/png");
+          };
+          return;
+        }
+  
+        // draw foreground image
+        ctx.drawImage(image, 0, 0, width, height);
+        canvas.toBlob(resolve, "image/png");
+      };
+    });
+  };
+  
 
   const handleRemove = async () => {
     setIsProcessing(true);
+  
     try {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const file = await fetch(images[activeIndex]).then(res => res.blob());
+      const formData = new FormData();
+      formData.append("file", file); // ⚠️ ключ "file", как в /remove_bg
+  
+      const response = await fetch("/remove-bg", {
+        method: "POST",
+        body: formData,
+      });
+  
+      if (!response.ok) throw new Error("Server error");
+  
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+  
+      setImages([url]);
+      setActiveIndex(0);
       setIsProcessed(true);
       setShowErrorModal(false);
     } catch (error) {
+      console.error(error);
       setShowErrorModal(true);
     } finally {
       setIsProcessing(false);
     }
   };
+  
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     setShowDownloadModal(true);
     setDownloadProgress(0);
     let progress = 0;
+  
     const interval = setInterval(() => {
       progress += 10;
       setDownloadProgress(progress);
       if (progress >= 100) {
         clearInterval(interval);
-        const link = document.createElement("a");
-        link.href = images[activeIndex];
-        link.download = "image.png";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setShowDownloadModal(false);
       }
     }, 300);
+  
+    const blob = await mergeImageWithBackground();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "result.png";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setShowDownloadModal(false);
   };
+  
 
   return (
     <div className="min-h-screen bg-white px-4 py-12 relative">
@@ -165,24 +228,34 @@ export default function ProcessPage() {
             className="bg-[#f5f5f5] rounded-xl w-full max-w-[600px] h-[500px] md:w-[1000px] md:h-[600px] flex items-center justify-center overflow-hidden relative"
           >
             {images.length > 0 ? (
-              <img
-                src={images[activeIndex]}
-                alt="Uploaded preview"
-                draggable={false}
-                style={{ transform: `scale(${zoom / 100})`, transition: "transform 0.2s" }}
-                className={`w-full h-auto md:max-h-[70vh] md:w-auto object-contain rounded-xl ${isProcessing ? "blur-sm" : ""}`}
-              />
-              
-              
-            ) : (
-              <p className="text-gray-500">No image uploaded</p>
-            )}
-            {rect && (
-              <div
-                className="absolute border-2 border-blue-400 bg-blue-200 bg-opacity-30 pointer-events-none"
-                style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
-              />
-            )}
+  <div className="relative w-full h-full flex items-center justify-center">
+    {selectedBg?.type === "image" && (
+  <img
+    src={selectedBg.value}
+    alt="Background"
+    className="absolute w-full h-full object-cover z-0 rounded-xl"
+  />
+)}
+
+{selectedBg?.type === "color" && (
+  <div
+    className="absolute w-full h-full z-0 rounded-xl"
+    style={{ backgroundColor: selectedBg.value }}
+  />
+)}
+
+    <img
+      src={images[activeIndex]}
+      alt="Foreground"
+      draggable={false}
+      style={{ transform: `scale(${zoom / 100})`, transition: "transform 0.2s" }}
+      className={`relative z-10 w-full h-auto md:max-h-[70vh] md:w-auto object-contain rounded-xl ${isProcessing ? "blur-sm" : ""}`}
+    />
+  </div>
+) : (
+  <p className="text-gray-500">No image uploaded</p>
+)}
+
             <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
               {brushPaths.map((path, index) => (
                 <polyline
@@ -270,11 +343,26 @@ export default function ProcessPage() {
     {tool === "color" ? (
       <div className="grid grid-cols-5 gap-3">
         {["#D9D9D9", "#F38BCB", "#9FD8D3", "#FFE177", "#96D97C", "#57D4F1", "#FFC7C7", "#8B80F9", "#C9F9A7", "#FDD446"].map((color, index) => (
-          <div key={index} className="w-12 h-12 mt-9 rounded-full border-2 border-white shadow cursor-pointer" style={{ backgroundColor: color }}></div>
-        ))}
+  <div
+    key={index}
+    className={`w-12 h-12 mt-9 rounded-full border-2 border-white shadow cursor-pointer ${selectedBg?.type === "color" && selectedBg?.value === color ? "ring-4 ring-blue-500" : ""}`}
+    style={{ backgroundColor: color }}
+    onClick={() => setSelectedBg({ type: "color", value: color })}
+  />
+))}
+
       </div>
     ) : (
       <div className="grid grid-cols-3 gap-3">
+        {/* Очистить фон */}
+<div
+  onClick={() => setSelectedBg({ type: null, value: null })}
+  className="w-24 h-24 rounded-[8px] border-2 border-dashed border-gray-400 flex items-center justify-center cursor-pointer shadow bg-white"
+  title="Удалить фон"
+>
+  <span className="text-2xl text-gray-500">✖</span>
+</div>
+
   {[
     "/bg-transparent.png",
     null,
@@ -284,7 +372,7 @@ export default function ProcessPage() {
     "/bg4.jpg",
     "/bg5.jpg",
     "/bg6.png",
-    "/bg8.png",
+  
   ].map((src, i) => {
     if (src === null) {
       return (
@@ -294,32 +382,34 @@ export default function ProcessPage() {
         >
           <img src="/bg.png" alt="Upload" className="w-18 h-18" />
           <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                  const newBg = event.target.result;
-                
-                  console.log("Загружен фон:", newBg);
-                };
-                reader.readAsDataURL(file);
-              }
-            }}
-          />
+  type="file"
+  accept="image/*"
+  className="hidden"
+  onChange={(e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const newBg = event.target.result;
+        setSelectedBg({ type: "image", value: newBg });
+      };
+      reader.readAsDataURL(file);
+    }
+  }}
+/>
+
         </label>
       );
     } else {
       return (
         <img
-          key={i}
-          src={src}
-          alt={`bg-${i}`}
-          className="w-24 h-24 rounded-[8px] object-cover cursor-pointer shadow"
-        />
+  key={i}
+  src={src}
+  alt={`bg-${i}`}
+  className={`w-24 h-24 rounded-[8px] object-cover cursor-pointer shadow ${selectedBg === src ? "ring-4 ring-blue-500" : ""}`}
+  onClick={() => setSelectedBg({ type: "image", value: src })}
+/>
+
       );
     }
   })}

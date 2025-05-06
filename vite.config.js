@@ -12,6 +12,10 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     allowedHosts: ['dev.phototune.ai', 'www.dev.phototune.ai'],
+    proxy: {
+      '/remove-watermark': 'http://localhost:8000',
+      '/remove-bg': 'http://localhost:8000',
+    },
   },
 });
 
