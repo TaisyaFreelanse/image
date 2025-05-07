@@ -136,7 +136,7 @@ export default function ProcessPage() {
           return;
         }
   
-        // draw foreground image
+        
         ctx.drawImage(image, 0, 0, width, height);
         canvas.toBlob(resolve, "image/png");
       };
@@ -150,7 +150,7 @@ export default function ProcessPage() {
     try {
       const file = await fetch(images[activeIndex]).then(res => res.blob());
       const formData = new FormData();
-      formData.append("file", file); // ⚠️ ключ "file", как в /remove_bg
+      formData.append("file", file); 
   
       const response = await fetch("/remove-bg", {
         method: "POST",

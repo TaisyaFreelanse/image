@@ -31,10 +31,18 @@ export default function UploadImage() {
 
     setLoading(true);
 
-    setTimeout(() => {
+    const reader = new FileReader();
+    reader.onload = () => {
       setLoading(false);
-      navigate("/process", { state: { image: URL.createObjectURL(file) } });
-    }, 2000);
+      
+      navigate("/process", { state: { image: reader.result } });
+    };
+    reader.onerror = () => {
+      setLoading(false);
+      console.error("Ошибка чтения файла");
+      setShowNoFileError(true);
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -42,58 +50,30 @@ export default function UploadImage() {
       {loading && <Loader />}
 
       {showFileTypeError && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white px-10 py-8 rounded-[28px] w-full max-w-sm text-center shadow-xl">
-            <img src="/unsupported-icon.png" alt="Unsupported file" className="w-20 h-20 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2">Unsupported file type…</h2>
-            <p className="text-gray-500 text-sm mb-6">
-              This format is not supported.<br />
-              Please upload a <span className="text-blue-500">.jpg</span>, <span className="text-blue-500">.jpeg</span>, <span className="text-blue-500">.png</span>, or <span className="text-blue-500">.webp</span> image.
-            </p>
-            <button
-              onClick={() => setShowFileTypeError(false)}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full"
-            >
-              Okay
-            </button>
-          </div>
-        </div>
+        <Modal
+          icon="/unsupported-icon.png"
+          title="Unsupported file type…"
+          message="This format is not supported. Please upload a .jpg, .jpeg, .png, or .webp image."
+          onClose={() => setShowFileTypeError(false)}
+        />
       )}
 
       {showFileSizeError && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white px-10 py-8 rounded-[28px] w-full max-w-sm text-center shadow-xl">
-            <img src="/unsupported-icon.png" alt="File too large" className="w-20 h-20 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2">File too large</h2>
-            <p className="text-gray-500 text-sm mb-6">
-              Your image is too large. Max size is <span className="text-blue-500">10 MB</span>.
-            </p>
-            <button
-              onClick={() => setShowFileSizeError(false)}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full"
-            >
-              Okay
-            </button>
-          </div>
-        </div>
+        <Modal
+          icon="/unsupported-icon.png"
+          title="File too large"
+          message="Your image is too large. Max size is 10 MB."
+          onClose={() => setShowFileSizeError(false)}
+        />
       )}
 
       {showNoFileError && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white px-10 py-8 rounded-[28px] w-full max-w-sm text-center shadow-xl">
-            <img src="/unsupported-icon.png" alt="No image selected" className="w-20 h-20 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2">No image selected</h2>
-            <p className="text-gray-500 text-sm mb-6">
-              Please select an image to continue
-            </p>
-            <button
-              onClick={() => setShowNoFileError(false)}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full"
-            >
-              Okay
-            </button>
-          </div>
-        </div>
+        <Modal
+          icon="/unsupported-icon.png"
+          title="No image selected"
+          message="Please select an image to continue"
+          onClose={() => setShowNoFileError(false)}
+        />
       )}
 
       <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 flex flex-col items-center justify-center text-center min-h-[200px]">
@@ -109,6 +89,26 @@ export default function UploadImage() {
     </>
   );
 }
+
+
+function Modal({ icon, title, message, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white px-10 py-8 rounded-[28px] w-full max-w-sm text-center shadow-xl">
+        <img src={icon} alt="Error icon" className="w-20 h-20 mx-auto mb-4" />
+        <h2 className="text-lg font-semibold mb-2">{title}</h2>
+        <p className="text-gray-500 text-sm mb-6">{message}</p>
+        <button
+          onClick={onClose}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full"
+        >
+          Okay
+        </button>
+      </div>
+    </div>
+  );
+}
+
 
 
 

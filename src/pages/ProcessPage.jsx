@@ -4,7 +4,29 @@ import MagicIcon from "../assets/remove-icon.png";
 export default function ProcessPage() {
   const location = useLocation();
   const initialImage = location.state?.image;
-
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  function dataURLtoBlob(dataURL) {
+    if (typeof dataURL !== "string" || !dataURL.includes(",")) {
+      throw new Error("Invalid data URL format.");
+    }
+  
+    const arr = dataURL.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    if (!mimeMatch) {
+      throw new Error("MIME type not found in data URL.");
+    }
+  
+    const mime = mimeMatch[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  }
+  
+  
   const [mode, setMode] = useState("automatic");
   const [zoom, setZoom] = useState(100);
   const [history, setHistory] = useState([75]);
@@ -21,6 +43,7 @@ export default function ProcessPage() {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const imageRef = useRef();
   const containerRef = useRef();
 
   const increaseZoom = () => updateZoom(Math.min(zoom + 5, 200));
@@ -63,39 +86,42 @@ export default function ProcessPage() {
     }
   };
   const createMaskFromBrushPaths = () => {
-  const canvas = document.createElement("canvas");
-  canvas.width = containerRef.current.offsetWidth;
-  canvas.height = containerRef.current.offsetHeight;
-  const ctx = canvas.getContext("2d");
-
-  // Черный фон
-  ctx.fillStyle = "black";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Белая кисть
-  ctx.strokeStyle = "white";
-  ctx.lineWidth = brushSize;
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-
-  for (const path of brushPaths) {
-    ctx.beginPath();
-    path.forEach((point, i) => {
-      if (i === 0) {
-        ctx.moveTo(point.x, point.y);
-      } else {
-        ctx.lineTo(point.x, point.y);
-      }
+    const canvas = document.createElement("canvas");
+    canvas.width = imageSize.width;
+    canvas.height = imageSize.height;
+    const ctx = canvas.getContext("2d");
+  
+    // Чёрный фон
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+    // Белая кисть
+    const scaleX = imageSize.width / containerRef.current.offsetWidth;
+    const scaleY = imageSize.height / containerRef.current.offsetHeight;
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = brushSize * scaleX;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+  
+    for (const path of brushPaths) {
+      ctx.beginPath();
+      path.forEach((point, i) => {
+        const x = point.x * scaleX;
+        const y = point.y * scaleY;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+    }
+  
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), "image/png");
     });
-    ctx.stroke();
-  }
-
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => {
-      resolve(blob);
-    }, "image/png");
-  });
-};
+  };
+  
 
 
   const startDraw = (e) => {
@@ -132,21 +158,56 @@ export default function ProcessPage() {
 
   const stopDraw = () => {
     setIsDrawing(false);
-    setRect(null);
-    if (tool === "brush") {
-      setBrushPaths((prev) => prev.slice(0, -1));
-    }
   };
-
+  
   const handleRemove = async () => {
+
     setIsProcessing(true);
   
     try {
-      const file = await fetch(images[activeIndex]).then(res => res.blob());
+      const file = dataURLtoBlob(images[activeIndex]);
       const formData = new FormData();
       formData.append("image", file);
   
-      const response = await fetch("/remove-watermark", {
+      let maskBlob = null;
+  
+      if (tool === "brush") {
+        maskBlob = await createMaskFromBrushPaths();
+      } else if (tool === "rectangle" && rect) {
+        
+        const canvas = document.createElement("canvas");
+        const image = new Image();
+image.src = images[activeIndex];
+await new Promise(resolve => (image.onload = resolve));
+
+canvas.width = image.naturalWidth;
+canvas.height = image.naturalHeight;
+
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        const imgBounds = imageRef.current.getBoundingClientRect();
+const scaleX = canvas.width / imgBounds.width;
+const scaleY = canvas.height / imgBounds.height;
+
+
+const x = Math.min(rect.x, rect.x + rect.width) * scaleX;
+const y = Math.min(rect.y, rect.y + rect.height) * scaleY;
+const width = Math.abs(rect.width) * scaleX;
+const height = Math.abs(rect.height) * scaleY;
+
+ctx.fillRect(x, y, width, height);
+
+
+        maskBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      }
+  
+      if (maskBlob) {
+        formData.append("mask", maskBlob, "mask.png");
+      }
+      
+      const response = await fetch("http://localhost:8000/remove-watermark", {
         method: "POST",
         body: formData,
       });
@@ -157,6 +218,8 @@ export default function ProcessPage() {
       const url = URL.createObjectURL(blob);
   
       setImages([url]);
+      setBrushPaths([]);
+      setRect(null);
       setActiveIndex(0);
       setIsProcessed(true);
       setShowErrorModal(false);
@@ -167,6 +230,7 @@ export default function ProcessPage() {
       setIsProcessing(false);
     }
   };
+  
   
   const handleDownload = () => {
     setShowDownloadModal(true);
@@ -261,12 +325,19 @@ export default function ProcessPage() {
 
             {images.length > 0 ? (
               <img
-                src={images[activeIndex]}
-                alt="Uploaded preview"
-                draggable={false}
-                style={{ transform: `scale(${zoom / 100})`, transition: "transform 0.2s" }}
-                className={`w-full h-auto md:max-h-[70vh] md:w-auto object-contain rounded-xl ${isProcessing ? "blur-sm" : ""}`}
-              />
+              src={images[activeIndex]}
+              ref={imageRef}
+              alt="Uploaded preview"
+              draggable={false}
+              onLoad={(e) => {
+                setImageSize({
+                  width: e.target.naturalWidth,
+                  height: e.target.naturalHeight,
+                });
+              }}
+              style={{ transform: `scale(${zoom / 100})`, transition: "transform 0.2s" }}
+              className={`w-full h-auto md:max-h-[70vh] md:w-auto object-contain rounded-xl ${isProcessing ? "blur-sm" : ""}`}
+            />            
             ) : (
               <p className="text-gray-500">No image uploaded</p>
             )}
@@ -479,20 +550,4 @@ export default function ProcessPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
