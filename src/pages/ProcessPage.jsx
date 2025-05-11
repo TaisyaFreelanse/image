@@ -91,11 +91,11 @@ export default function ProcessPage() {
     canvas.height = imageSize.height;
     const ctx = canvas.getContext("2d");
   
-    // Чёрный фон
+    
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-    // Белая кисть
+    
     const scaleX = imageSize.width / containerRef.current.offsetWidth;
     const scaleY = imageSize.height / containerRef.current.offsetHeight;
     ctx.strokeStyle = "white";
@@ -161,7 +161,6 @@ export default function ProcessPage() {
   };
   
   const handleRemove = async () => {
-
     setIsProcessing(true);
   
     try {
@@ -169,48 +168,75 @@ export default function ProcessPage() {
       const formData = new FormData();
       formData.append("image", file);
   
+      if (mode === "automatic") {
+  const response = await fetch("/proxy/remove-watermark", {
+    method: "POST",
+    headers: {
+      "x-token": "secret-token", 
+    },
+    body: formData,
+  });
+
+
+  
+        if (!response.ok) throw new Error("Server error");
+  
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+  
+        setImages([url]);
+        setBrushPaths([]);
+        setRect(null);
+        setActiveIndex(0);
+        setIsProcessed(true);
+        setShowErrorModal(false);
+        return;
+      }
+  
       let maskBlob = null;
   
       if (tool === "brush") {
         maskBlob = await createMaskFromBrushPaths();
       } else if (tool === "rectangle" && rect) {
-        
         const canvas = document.createElement("canvas");
         const image = new Image();
-image.src = images[activeIndex];
-await new Promise(resolve => (image.onload = resolve));
-
-canvas.width = image.naturalWidth;
-canvas.height = image.naturalHeight;
-
+        image.src = images[activeIndex];
+        await new Promise((resolve) => (image.onload = resolve));
+  
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+  
         const ctx = canvas.getContext("2d");
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "white";
+  
         const imgBounds = imageRef.current.getBoundingClientRect();
-const scaleX = canvas.width / imgBounds.width;
-const scaleY = canvas.height / imgBounds.height;
-
-
-const x = Math.min(rect.x, rect.x + rect.width) * scaleX;
-const y = Math.min(rect.y, rect.y + rect.height) * scaleY;
-const width = Math.abs(rect.width) * scaleX;
-const height = Math.abs(rect.height) * scaleY;
-
-ctx.fillRect(x, y, width, height);
-
-
+        const scaleX = canvas.width / imgBounds.width;
+        const scaleY = canvas.height / imgBounds.height;
+  
+        const x = Math.min(rect.x, rect.x + rect.width) * scaleX;
+        const y = Math.min(rect.y, rect.y + rect.height) * scaleY;
+        const width = Math.abs(rect.width) * scaleX;
+        const height = Math.abs(rect.height) * scaleY;
+  
+        ctx.fillRect(x, y, width, height);
+  
         maskBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
       }
   
       if (maskBlob) {
         formData.append("mask", maskBlob, "mask.png");
       }
-      
-      const response = await fetch("http://localhost:8000/remove-watermark", {
-        method: "POST",
-        body: formData,
-      });
+  
+      const response = await fetch("/proxy/remove-watermark", {
+  method: "POST",
+  headers: {
+    "x-token": "secret-token", 
+  },
+  body: formData,
+});
+
   
       if (!response.ok) throw new Error("Server error");
   
@@ -229,7 +255,7 @@ ctx.fillRect(x, y, width, height);
     } finally {
       setIsProcessing(false);
     }
-  };
+  };  
   
   
   const handleDownload = () => {
@@ -335,8 +361,8 @@ ctx.fillRect(x, y, width, height);
                   height: e.target.naturalHeight,
                 });
               }}
-              style={{ transform: `scale(${zoom / 100})`, transition: "transform 0.2s" }}
-              className={`w-full h-auto md:max-h-[70vh] md:w-auto object-contain rounded-xl ${isProcessing ? "blur-sm" : ""}`}
+              style={{ width: imageSize.width, height: imageSize.height, transform: `scale(${zoom / 100})`, transition: "transform 0.2s" }}
+             className={`object-contain rounded-xl ${isProcessing ? "blur-sm" : ""}`}
             />            
             ) : (
               <p className="text-gray-500">No image uploaded</p>

@@ -120,7 +120,7 @@ export default function ProcessPage() {
         canvas.height = height;
         const ctx = canvas.getContext("2d");
   
-        // draw background
+        
         if (selectedBg?.type === "color") {
           ctx.fillStyle = selectedBg.value;
           ctx.fillRect(0, 0, width, height);
@@ -150,13 +150,16 @@ export default function ProcessPage() {
     try {
       const file = await fetch(images[activeIndex]).then(res => res.blob());
       const formData = new FormData();
-      formData.append("file", file); 
+      formData.append("image", file); 
   
-      const response = await fetch("/remove-bg", {
-        method: "POST",
-        body: formData,
-      });
-  
+      const response = await fetch("/proxy/remove-bg", {
+  method: "POST",
+  headers: {
+    "x-token": "secret-token",
+  },
+  body: formData,
+});
+
       if (!response.ok) throw new Error("Server error");
   
       const blob = await response.blob();
@@ -354,7 +357,7 @@ export default function ProcessPage() {
       </div>
     ) : (
       <div className="grid grid-cols-3 gap-3">
-        {/* Очистить фон */}
+        {}
 <div
   onClick={() => setSelectedBg({ type: null, value: null })}
   className="w-24 h-24 rounded-[8px] border-2 border-dashed border-gray-400 flex items-center justify-center cursor-pointer shadow bg-white"

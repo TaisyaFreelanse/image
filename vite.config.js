@@ -5,7 +5,7 @@ import svgr from "vite-plugin-svgr";
 export default defineConfig({
   plugins: [
     react(),
-    svgr(), 
+    svgr(),
   ],
   server: {
     host: '0.0.0.0',
@@ -13,10 +13,17 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: ['dev.phototune.ai', 'www.dev.phototune.ai'],
     proxy: {
-      '/remove-watermark': 'http://localhost:8000',
-      '/remove-bg': 'http://localhost:8000',
+      '/proxy': {
+        target: 'http://localhost:8000', // FastAPI-прокси сервер
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/proxy/, ''),
+      },
     },
   },
 });
+
+
+
+
 
 
